@@ -15,8 +15,8 @@ import { useAuth } from '../contexts/AuthContext'; // Import useAuth hook
 
 const TransactionHistoryPage = () => {
     const navigate = useNavigate();
-    const { isAuthenticated, loadingAuth } = useAuth(); // Get auth states from context
-    const currentUsername = "user?.username"; // Get the username of the logged-in user
+    const { isAuthenticated, loadingAuth , user } = useAuth(); // Get auth states from context
+    const currentUsername = user?.username; // Get the username of the logged-in user
 
     const [transactions, setTransactions] = useState([]); // Renamed from ledgerEntries to transactions
     const [error, setError] = useState('');
@@ -202,7 +202,6 @@ const TransactionHistoryPage = () => {
                 <Paper elevation={3} sx={{ p: 2 }}>
                     <List>
                         {transactions.map((transaction, index) => {
-                            // Get details specific to the current user for this transaction
                             const details = getTransactionDetails(transaction);
 
                             return (
@@ -228,13 +227,14 @@ const TransactionHistoryPage = () => {
                                                     <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
                                                         **Balance:** {formatCurrency(details.balanceBefore)} &rarr; {formatCurrency(details.balanceAfter)}
                                                     </Typography>
-                                                    {details.relatedParty !== 'N/A' && (
+                                                    {/* Only show related party if it's not 'N/A' */}
+                                                    {details.relatedParty !== null && details.relatedParty.length > 0 && details.relatedParty !== 'N/A' && (
                                                         <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
                                                             **Related Party:** {details.relatedParty}
                                                         </Typography>
                                                     )}
                                                     <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
-                                                        **Date:** {dayjs(transaction.timestamp).format('MMM DD, YYYY hh:mm:ss A')}
+                                                        **Date:** {dayjs(transaction.timestamp).format('MMM DD,YYYY hh:mm:ss A')}
                                                     </Typography>
                                                     <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
                                                         **Transaction ID:** {transaction.id}
@@ -251,6 +251,7 @@ const TransactionHistoryPage = () => {
                 </Paper>
             )}
         </Container>
+
     );
 };
 

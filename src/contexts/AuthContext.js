@@ -31,15 +31,16 @@ export const AuthProvider = ({ children }) => {
             // For this E-Wallet example, the mere presence of a token indicates authentication.
             setIsAuthenticated(true);
             // Optional: Extract username from token if needed immediately
-            // try {
-            //   const decodedToken = JSON.parse(atob(token.split('.')[1]));
-            //   setUser({ username: decodedToken.sub }); // 'sub' is a standard JWT claim for subject/username
-            // } catch (e) {
-            //   console.error("Failed to decode token:", e);
-            //   // If decoding fails, perhaps the token is malformed, so treat as unauthenticated
-            //   setIsAuthenticated(false);
-            //   localStorage.removeItem('jwt_token');
-            // }
+            try {
+                const decodedToken = JSON.parse(atob(token.split('.')[1]));
+                setUser({ username: decodedToken.sub }); // 'sub' is a standard JWT claim for subject/username
+            } catch (e) {
+                console.error("Failed to decode token:", e);
+                // If decoding fails, perhaps the token is malformed, so treat as unauthenticated
+                setIsAuthenticated(false);
+                setUser(null); // Ensure user is cleared on malformed token
+                localStorage.removeItem('jwt_token');
+            }
         } else {
             setIsAuthenticated(false);
             setUser(null);
@@ -62,8 +63,14 @@ export const AuthProvider = ({ children }) => {
             if (response && response.jwtToken) {
                 localStorage.setItem('jwt_token', response.jwtToken);
                 setIsAuthenticated(true);
-                // If your backend returns user details along with the token, set them here
-                // setUser(response.user || { username: username });
+                // Set user information based on successful login (e.g., from decoded token or backend response)
+                try {
+                    const decodedToken = JSON.parse(atob(response.jwtToken.split('.')[1]));
+                    setUser({ username: decodedToken.sub });
+                } catch (e) {
+                    console.error("Failed to decode token after login:", e);
+                    setUser({ username: username }); // Fallback: use the provided username
+                }
                 return response; // Return the full response for the calling component if needed
             } else {
                 throw new Error("Login successful but no token received."); // Custom error if token is missing
