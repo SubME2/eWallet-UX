@@ -7,26 +7,29 @@ import {
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs from 'dayjs'; // Ensure dayjs is installed: npm install dayjs
+import dayjs from 'dayjs';
 import ledgerService from '../services/ledgerService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext'; // Import useAuth hook
 
+
 const TransactionHistoryPage = () => {
     const navigate = useNavigate();
     const { isAuthenticated, loadingAuth } = useAuth(); // Get auth states from context
+    const currentUsername = "user?.username"; // Get the username of the logged-in user
 
-    const [ledgerEntries, setLedgerEntries] = useState([]);
+    const [transactions, setTransactions] = useState([]); // Renamed from ledgerEntries to transactions
     const [error, setError] = useState('');
     const [loadingHistory, setLoadingHistory] = useState(true); // Specific loading for history fetch
     const [startDate, setStartDate] = useState(null); // dayjs object or null
     const [endDate, setEndDate] = useState(dayjs()); // default to today
 
     // Fetch ledger entries based on date range
-    const fetchLedgerEntries = useCallback(async () => {
-        // Only attempt to fetch if authentication is confirmed
-        if (!isAuthenticated || loadingAuth) {
-            setLoadingHistory(false); // Ensure loading is off if not authenticated/still loading auth
+    const fetchTransactions =  useCallback(async () => {
+        // Only attempt to fetch if authentication check is complete, user is authenticated,
+        // and we have the current username.
+        if (loadingAuth || !isAuthenticated || !currentUsername) {
+            setLoadingHistory(false);
             return;
         }
 
@@ -35,45 +38,102 @@ const TransactionHistoryPage = () => {
         try {
             let data;
             if (startDate && endDate) {
-                // Format dates to YYYY-MM-DD for the backend API
                 const formattedStartDate = startDate.format('YYYY-MM-DD');
                 const formattedEndDate = endDate.format('YYYY-MM-DD');
+                // Assuming your ledgerService.getLedgerEntriesForCurrentUserByDateRange
+                // now fetches a list of Transaction objects.
                 data = await ledgerService.getLedgerEntriesForCurrentUserByDateRange(formattedStartDate, formattedEndDate);
             } else {
+                // Assuming your ledgerService.getLedgerEntriesForCurrentUser
+                // now fetches a list of Transaction objects.
                 data = await ledgerService.getLedgerEntriesForCurrentUser();
             }
-            setLedgerEntries(data);
+            setTransactions(data);
         } catch (err) {
-            setError(err); // Display error message from the backend or default
-            setLedgerEntries([]); // Clear previous entries on error
+            setError(err);
+            setTransactions([]);
         } finally {
             setLoadingHistory(false);
         }
-    }, [startDate, endDate, isAuthenticated, loadingAuth]); // Dependencies for useCallback
+    }, [startDate, endDate, isAuthenticated, loadingAuth, currentUsername]); // Dependencies for useCallback
+
+
+
 
     // Trigger data fetch on component mount or when filters/auth status changes
     useEffect(() => {
-        fetchLedgerEntries();
-    }, [fetchLedgerEntries]); // Re-fetch when fetchLedgerEntries changes (due to its dependencies)
+        fetchTransactions();
+    }, [fetchTransactions]);
 
     // Helper to format currency
     const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+        // Ensure amount is treated as a number and has 2 decimal places
+        const numericAmount = parseFloat(amount);
+        if (isNaN(numericAmount)) return 'N/A';
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(numericAmount);
     };
 
-    // Helper to get color for amount (green for deposit/received, red for withdrawal/sent)
-    const getAmountColor = (type, amount) => {
-        if (type === 'DEPOSIT' || type === 'TRANSFER_RECEIVED') {
-            return 'green';
-        } else if (type === 'WITHDRAWAL' || type === 'TRANSFER_SENT') {
-            return 'red';
+    // Helper to get transaction details relative to the current user
+    const getTransactionDetails = (transaction) => {
+        const isSender = transaction.senderUsername === currentUsername;
+        const isReceiver = transaction.receiverUsername === currentUsername;
+
+        let displayType = transaction.type.replace('_', ' '); // Format the type string
+        let relatedParty = 'N/A';
+        let displayAmount = transaction.amount;
+        let balanceBefore = transaction.preBalance;
+        let balanceAfter = transaction.postBalance;
+        let amountColor = 'black';
+
+        // Logic to determine type and related party for the *current user*
+        if (transaction.type === 'TRANSFER_SENT') {
+            if (isSender) { // If current user sent it
+                displayType = 'TRANSFER SENT';
+                relatedParty = transaction.receiverUsername;
+                amountColor = 'red';
+                // Backend might send preBalance/postBalance relative to the transaction.
+                // If these are YOUR balances, use them. If they are global, need adjustment.
+                // Assuming for simplicity that preBalance/postBalance are the current user's balances.
+            } else if (isReceiver) { // If current user received it (this should be TRANSFER_RECEIVED in a ledger, but handling raw transactions)
+                displayType = 'TRANSFER RECEIVED';
+                relatedParty = transaction.senderUsername;
+                amountColor = 'green';
+            }
+        } else if (transaction.type === 'TRANSFER_RECEIVED') {
+            if (isReceiver) { // If current user received it
+                displayType = 'TRANSFER RECEIVED';
+                relatedParty = transaction.senderUsername;
+                amountColor = 'green';
+            } else if (isSender) { // If current user sent it (this should be TRANSFER_SENT)
+                displayType = 'TRANSFER SENT';
+                relatedParty = transaction.receiverUsername;
+                amountColor = 'red';
+            }
+        } else if (transaction.type === 'DEPOSIT') {
+            // Deposits should only apply to the current user
+            displayType = 'DEPOSIT';
+            amountColor = 'green';
+            // relatedParty remains N/A or perhaps 'Self'
+        } else if (transaction.type === 'WITHDRAWAL') {
+            // Withdrawals should only apply to the current user
+            displayType = 'WITHDRAWAL';
+            amountColor = 'red';
+            // relatedParty remains N/A or perhaps 'Self'
         }
-        return 'black'; // Default or other types
+
+        return {
+            displayType,
+            displayAmount,
+            balanceBefore,
+            balanceAfter,
+            relatedParty,
+            amountColor
+        };
     };
 
     // --- Conditional Rendering based on Authentication Status or Component Loading ---
-    // If authentication status is still being determined (should be handled by PrivateRoute, but good for robustness)
-    if (loadingAuth) {
+    // If authentication status is still being determined (PrivateRoute should prevent this, but robust check)
+    if (loadingAuth || !currentUsername) {
         return (
             <Container maxWidth="xs" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
                 <CircularProgress />
@@ -86,6 +146,8 @@ const TransactionHistoryPage = () => {
         navigate('/login', { replace: true });
         return null;
     }
+
+
 
     return (
         <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
@@ -111,7 +173,7 @@ const TransactionHistoryPage = () => {
                             value={startDate}
                             onChange={(newValue) => setStartDate(newValue)}
                             renderInput={(params) => <TextField {...params} fullWidth />}
-                            maxDate={endDate || dayjs()} // Start date cannot be after end date or today
+                            maxDate={endDate || dayjs()}
                         />
                     </Grid>
                     <Grid item xs={12} sm={6}>
@@ -120,64 +182,71 @@ const TransactionHistoryPage = () => {
                             value={endDate}
                             onChange={(newValue) => setEndDate(newValue)}
                             renderInput={(params) => <TextField {...params} fullWidth />}
-                            minDate={startDate || null} // End date cannot be before start date
-                            maxDate={dayjs()} // End date cannot be in the future
+                            minDate={startDate || null}
+                            maxDate={dayjs()}
                         />
                     </Grid>
                 </Grid>
             </LocalizationProvider>
 
             {/* Loading, Error, or Data Display */}
-            {loadingHistory ? ( // Use loadingHistory for this component's data fetch
+            {loadingHistory ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
                     <CircularProgress />
                 </Box>
             ) : error ? (
                 <Alert severity="error" sx={{ mt: 2, width: '100%' }}>{error}</Alert>
-            ) : ledgerEntries.length === 0 ? (
+            ) : transactions.length === 0 ? (
                 <Alert severity="info" sx={{ mt: 2, width: '100%' }}>No transactions found for the selected period.</Alert>
             ) : (
                 <Paper elevation={3} sx={{ p: 2 }}>
                     <List>
-                        {ledgerEntries.map((entry, index) => (
-                            <React.Fragment key={entry.id}>
-                                <ListItem alignItems="flex-start">
-                                    <ListItemText
-                                        primary={
-                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <Typography variant="body1" component="span" fontWeight="bold">
-                                                    {entry.transactionType.replace('_', ' ')} {/* Format type string */}
-                                                </Typography>
-                                                <Typography
-                                                    variant="body1"
-                                                    component="span"
-                                                    sx={{ color: getAmountColor(entry.transactionType, entry.amount), fontWeight: 'bold' }}
-                                                >
-                                                    {formatCurrency(entry.amount)}
-                                                </Typography>
-                                            </Box>
-                                        }
-                                        secondary={
-                                            <>
-                                                <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
-                                                    **Wallet Balance:** {formatCurrency(entry.preTransactionBalance)} &rarr; {formatCurrency(entry.postTransactionBalance)}
-                                                </Typography>
-                                                <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
-                                                    **Related Party:** {entry.relatedPartyUsername || 'N/A'}
-                                                </Typography>
-                                                <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
-                                                    **Date:** {dayjs(entry.entryTimestamp).format('MMM DD, YYYY hh:mm:ss A')}
-                                                </Typography>
-                                                <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
-                                                    **Transaction ID:** {entry.transaction?.id || 'N/A'}
-                                                </Typography>
-                                            </>
-                                        }
-                                    />
-                                </ListItem>
-                                {index < ledgerEntries.length - 1 && <Divider component="li" />}
-                            </React.Fragment>
-                        ))}
+                        {transactions.map((transaction, index) => {
+                            // Get details specific to the current user for this transaction
+                            const details = getTransactionDetails(transaction);
+
+                            return (
+                                <React.Fragment key={transaction.id}>
+                                    <ListItem alignItems="flex-start">
+                                        <ListItemText
+                                            primary={
+                                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <Typography variant="body1" component="span" fontWeight="bold">
+                                                        {details.displayType}
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body1"
+                                                        component="span"
+                                                        sx={{ color: details.amountColor, fontWeight: 'bold' }}
+                                                    >
+                                                        {formatCurrency(details.displayAmount)}
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            secondary={
+                                                <>
+                                                    <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
+                                                        **Balance:** {formatCurrency(details.balanceBefore)} &rarr; {formatCurrency(details.balanceAfter)}
+                                                    </Typography>
+                                                    {details.relatedParty !== 'N/A' && (
+                                                        <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
+                                                            **Related Party:** {details.relatedParty}
+                                                        </Typography>
+                                                    )}
+                                                    <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
+                                                        **Date:** {dayjs(transaction.timestamp).format('MMM DD, YYYY hh:mm:ss A')}
+                                                    </Typography>
+                                                    <Typography sx={{ display: 'block' }} component="span" variant="body2" color="text.secondary">
+                                                        **Transaction ID:** {transaction.id}
+                                                    </Typography>
+                                                </>
+                                            }
+                                        />
+                                    </ListItem>
+                                    {index < transactions.length - 1 && <Divider component="li" />}
+                                </React.Fragment>
+                            );
+                        })}
                     </List>
                 </Paper>
             )}

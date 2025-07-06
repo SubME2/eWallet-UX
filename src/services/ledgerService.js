@@ -1,7 +1,7 @@
 // src/services/ledgerService.js
 import api from './api'; // Assuming 'api.js' is configured with axios and JWT interceptor
 
-const LEDGER_BASE_URL = '/ledger'; // Base URL for ledger-related endpoints
+const LEDGER_BASE_URL = '/wallet'; // Base URL for ledger-related endpoints
 
 /**
  * Fetches all ledger entries for the currently authenticated user.
@@ -10,7 +10,7 @@ const LEDGER_BASE_URL = '/ledger'; // Base URL for ledger-related endpoints
  */
 const getLedgerEntriesForCurrentUser = async () => {
     try {
-        const response = await api.get(`${LEDGER_BASE_URL}/entries`);
+        const response = await api.get(`${LEDGER_BASE_URL}/transactions`);
         return response.data; // Assuming response.data is an array of LedgerEntry objects
     } catch (error) {
         // Extract and throw the backend's error message, or a default one
@@ -28,7 +28,7 @@ const getLedgerEntriesForCurrentUser = async () => {
  */
 const getLedgerEntriesForCurrentUserByDateRange = async (startDate, endDate) => {
     try {
-        const response = await api.get(`${LEDGER_BASE_URL}/entries/range`, {
+        const response = await api.get(`${LEDGER_BASE_URL}/transactions/range`, {
             params: { startDate, endDate } // Send dates as query parameters
         });
         return response.data; // Assuming response.data is an array of LedgerEntry objects
