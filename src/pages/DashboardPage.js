@@ -1,9 +1,9 @@
 // src/pages/DashboardPage.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Typography, Container, Box, Button, TextField, Paper, Grid,
+    Typography, Container, Box, Button, TextField, Paper,
     CircularProgress, Alert, AppBar, Toolbar, IconButton,
-    List, ListItem, ListItemText, Divider, Chip
+    List, ListItem, Divider,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -57,7 +57,7 @@ const DashboardPage = () => {
     }, [isAuthenticated, loadingAuth]);
 
     useEffect(() => {
-        fetchDashboardData();
+        fetchDashboardData().then(r => console.log(r));
     }, [fetchDashboardData]);
 
     // Async function for processing transactions (remains unchanged)
@@ -104,7 +104,7 @@ const DashboardPage = () => {
         try {
             const response = await processTransaction(selectedAction, transactionAmount, recipient);
 
-            if (response && response.success) {
+            if (response ) {
                 setMessage(`${selectedAction.charAt(0).toUpperCase() + selectedAction.slice(1)} successful!`);
                 setAmount('');
                 setRecipient('');
@@ -328,7 +328,7 @@ const DashboardPage = () => {
                                 fullWidth
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
-                                inputProps={{ step: "0.01", min: "0.01" }}
+                                slotProps={{htmlInput: {step: "0.01"}}}
                                 required
                                 variant="outlined"
                                 size="small"
