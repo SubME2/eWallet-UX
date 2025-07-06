@@ -82,7 +82,8 @@ const TransferPage = () => {
                         label="Amount to Transfer"
                         name="amount"
                         type="number" // Set type to number for numeric keyboard on mobile
-                        inputProps={{ step: "0.01" }} // Allow decimal values for currency input
+                        slotProps={{htmlInput: {step: "0.01"}}}
+                        //inputProps={{ step: "0.01" }} // Allow decimal values for currency input
                         {...register('amount')}
                         error={!!errors.amount}
                         helperText={errors.amount?.message}

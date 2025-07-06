@@ -65,7 +65,8 @@ const WithdrawPage = () => {
                         label="Amount to Withdraw"
                         name="amount"
                         type="number" // Set type to number for numeric keyboard on mobile
-                        inputProps={{ step: "0.01" }} // Allow decimal values for currency input
+                        slotProps={{htmlInput: {step: "0.01"}}}
+                        //inputProps={{ step: "0.01" }} // Allow decimal values for currency input
                         autoFocus
                         {...register('amount')}
                         error={!!errors.amount}

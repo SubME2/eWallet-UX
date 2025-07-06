@@ -42,7 +42,8 @@ const RegisterPage = () => {
     }, [isAuthenticated, loadingAuth, navigate]);
 
     const onSubmit = async (data) => {
-        setError('');
+        console.log(data);
+        setError(data.toString());
         setSuccess('');
         setIsSubmitting(true); // Start submission loading
         try {

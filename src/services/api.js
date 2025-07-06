@@ -1,6 +1,10 @@
 // src/services/api.js
 import axios from 'axios';
+import { HttpsAgent } from 'agentkeepalive';
 
+const keepaliveAgent = new HttpsAgent({
+    keepAlive: true
+});
 // Create an Axios instance
 const api = axios.create({
     // Use the environment variable for the API base URL.
@@ -10,6 +14,7 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json', // Default content type for requests
     },
+    httpsAgent: keepaliveAgent,
 });
 
 // --- Request Interceptor ---
@@ -20,7 +25,9 @@ api.interceptors.request.use(
         const token = localStorage.getItem('jwt_token'); // Get the token from localStorage
         if (token) {
             // If a token exists, add it to the Authorization header in 'Bearer' format
-            config.headers.Authorization = `Bearer ${token}`;
+            // config.headers.Authorization = `Bearer ${token}`;
+            // config.headers.hostname = "http://localhost:8080";
+            config.headers['Authorization'] = `Bearer ${token}`;
         }
         return config; // Return the modified config
     },

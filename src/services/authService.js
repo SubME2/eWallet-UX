@@ -45,7 +45,8 @@ const login = async (username, password) => {
     }
 };
 
-export default {
+var  exportVar = {
     register,
     login,
 };
+export default exportVar;

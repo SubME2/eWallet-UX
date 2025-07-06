@@ -1,5 +1,6 @@
 // src/services/walletService.js
 import api from './api'; // Assuming 'api.js' is configured with axios and JWT interceptor
+import { v4 as uuidv4 } from 'uuid';
 
 const WALLET_BASE_URL = '/wallet'; // Base URL for wallet-related endpoints
 
@@ -16,9 +17,10 @@ const getBalance = async () => {
 
 const deposit = async (amount) => {
     try {
-        const response = await api.post(`${WALLET_BASE_URL}/deposit`, null, {
-            params: { amount: amount } // Sending amount as a query parameter
-        });
+        const response = await api.post(`${WALLET_BASE_URL}/deposit`, {
+            amount: amount,
+            idempotencyKey: uuidv4()
+        }, null);
         // Assuming the backend returns an object with the new balance, e.g., { message: "Deposit successful", balance: 200.00 }
         return response.data;
     } catch (error) {
@@ -28,9 +30,10 @@ const deposit = async (amount) => {
 
 const withdraw = async (amount) => {
     try {
-        const response = await api.post(`${WALLET_BASE_URL}/withdraw`, null, {
-            params: { amount: amount } // Sending amount as a query parameter
-        });
+        const response = await api.post(`${WALLET_BASE_URL}/withdraw`, {
+            amount: amount,
+            idempotencyKey: uuidv4()
+        },null);
         // Assuming the backend returns an object with the new balance, e.g., { message: "Withdrawal successful", balance: 150.00 }
         return response.data;
     } catch (error) {
@@ -41,12 +44,11 @@ const withdraw = async (amount) => {
 
 const transfer = async (receiverUsername, amount) => {
     try {
-        const response = await api.post(`${WALLET_BASE_URL}/transfer`, null, {
-            params: {
-                receiverUsername: receiverUsername,
-                amount: amount
-            }
-        });
+        const response = await api.post(`${WALLET_BASE_URL}/transfer`, {
+            receiverUsername: receiverUsername,
+            amount: amount,
+            idempotencyKey: uuidv4()
+        }, null);
         // Assuming the backend returns a success message or updated balances
         return response.data;
     } catch (error) {
@@ -55,9 +57,10 @@ const transfer = async (receiverUsername, amount) => {
     }
 };
 
-export default {
+var exportVar = {
     getBalance,
     deposit,
     withdraw,
     transfer,
 };
+export default exportVar;
